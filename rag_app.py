@@ -12,7 +12,7 @@ load_dotenv()
 
 #load the PDF document
 print("Loading PDF document...")
-loader = PyPDFLoader("TechCorp_Official_Employee_Handbook.pdf")
+loader = PyPDFLoader("FADC-citit-done.pdf")
 document = loader.load()
 
 print(document[0].page_content)
@@ -29,7 +29,7 @@ print(chunks[0].page_content)
 
 #create embeddings and initialize the Vector DB
 print("Creating vector database...")
-embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 vector_db = Chroma.from_documents(
     documents=chunks, 
     embedding=embeddings, 

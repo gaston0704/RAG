@@ -30,7 +30,7 @@ My-RAG-project/
 ├── .env                     # Local environment variables (API key)
 ├── rag_app.py               # Main RAG application
 ├── chroma_db/               # Persisted vector database (generated at runtime)
-├── Curs.pdf  # Source PDF document
+├── Curs PAA complet.pdf   # Source PDF document
 ├── venv/                    # Virtual environment
 ├── .gitignore               # Git ignore rules
 └── README.md                # Project documentation
@@ -74,13 +74,13 @@ GOOGLE_API_KEY=your_google_api_key_here
 
 5. Place your PDF in the project root and ensure the filename matches the loader in `rag_app.py`.
 
-The app currently expects:
+The PDF currently included in the project is `Curs PAA complet.pdf`. Configure the loader in `rag_app.py` to use that exact filename:
 
 ```python
-loader = PyPDFLoader("TechCorp_Official_Employee_Handbook.pdf")
+loader = PyPDFLoader("Curs PAA complet.pdf")
 ```
 
-If your file has a different name, update that line in `rag_app.py`.
+If you use a different PDF, update the filename passed to `PyPDFLoader` to match it. The filename must include spaces and punctuation exactly as they appear on disk.
 
 ## Run the App
 
@@ -133,6 +133,6 @@ Answer: The employee handbook states that employees are entitled to ...
 
 ## Troubleshooting
 
-- If the app cannot load the PDF, check that the filename is correct.
+- If the app reports that the PDF path is not a valid file or URL, check that the PDF is in the project root and that its name matches the `PyPDFLoader` path. The bundled file is named `Curs PAA complet.pdf`.
 - If the API call fails, verify that `GOOGLE_API_KEY` is set correctly in `.env`.
 - If dependencies are missing, run the installation command again inside the active virtual environment.
