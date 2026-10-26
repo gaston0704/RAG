@@ -1,4 +1,7 @@
 import os
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -7,39 +10,49 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 
-# Load environment variables from the .env file
+# Load environment variables from the .env file (GOOGLE_API_KEY)
 load_dotenv()
+if not os.getenv("GOOGLE_API_KEY"):
+    sys.exit("GOOGLE_API_KEY is missing. Create a .env file with GOOGLE_API_KEY=your_key")
 
-#load the PDF document
-print("Loading PDF document...")
-loader = PyPDFLoader("FADC-citit-done.pdf")
-document = loader.load()
+# PDF to index: pass a path as argument, e.g. `python rag_app.py my_document.pdf`
+pdf_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("sample_employee_handbook.pdf")
+if not pdf_path.is_file():
+    sys.exit(f"PDF not found: {pdf_path}")
 
-print(document[0].page_content)
+# One vector database per PDF: documents don't mix and the index is reused between runs
+db_dir = Path("chroma_db") / pdf_path.stem
 
-# Chunking the text
-print("Chunking text...")
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=500,
-    chunk_overlap=50
-)
-chunks = text_splitter.split_documents(document)
-
-print(chunks[0].page_content)
-
-#create embeddings and initialize the Vector DB
-print("Creating vector database...")
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-vector_db = Chroma.from_documents(
-    documents=chunks, 
-    embedding=embeddings, 
-    persist_directory="./chroma_db"
-)
+
+if db_dir.is_dir() and any(db_dir.iterdir()):
+    print(f"Loading existing vector database for {pdf_path.name}...")
+    vector_db = Chroma(persist_directory=str(db_dir), embedding_function=embeddings)
+else:
+    # Load the PDF document
+    print(f"Loading {pdf_path.name}...")
+    document = PyPDFLoader(str(pdf_path)).load()
+
+    # Chunking the text
+    print("Chunking text...")
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50
+    )
+    chunks = text_splitter.split_documents(document)
+
+    # Create embeddings and store them in the vector DB
+    print(f"Creating vector database ({len(chunks)} chunks)...")
+    vector_db = Chroma.from_documents(
+        documents=chunks,
+        embedding=embeddings,
+        persist_directory=str(db_dir)
+    )
 
 # Configure the database to act as a document retriever
 retriever = vector_db.as_retriever(search_kwargs={"k": 2})
 
-# Define the hidden prompt structure for the LLM
+# Define the prompt structure for the LLM
 template = """
 Use the following pieces of retrieved context to answer the question. 
 If you don't know the answer, just say that you don't know. 

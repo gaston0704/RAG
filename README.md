@@ -1,138 +1,77 @@
 # RAG PDF Chatbot
 
-A lightweight Retrieval-Augmented Generation (RAG) application that lets you ask questions about a PDF document using a local vector database and Google's Gemini models.
+A small Retrieval-Augmented Generation (RAG) app that answers questions about a PDF, using a local
+Chroma vector database and Google's Gemini models. Answers are generated only from the passages
+retrieved from the document; if the document doesn't contain the answer, the model is instructed to say so.
 
-This project loads a PDF, splits it into chunks, creates embeddings, stores them in Chroma, and answers user queries by retrieving the most relevant passages before generating a response.
+## How it works
 
-## Features
+1. The PDF is loaded page by page (`PyPDFLoader`).
+2. The text is split into chunks of 500 characters with 50 characters of overlap (`RecursiveCharacterTextSplitter`).
+3. Each chunk is embedded with `gemini-embedding-001` and stored in a local Chroma database.
+4. For each question, the 2 most similar chunks are retrieved.
+5. The chunks and the question are sent to Gemini (temperature 0) with a prompt that restricts the answer to the
+   retrieved context (max. three sentences).
 
-- PDF ingestion with `PyPDFLoader`
-- Text chunking with `RecursiveCharacterTextSplitter`
-- Embeddings using Google Generative AI
-- Vector storage with Chroma
-- Retrieval-based question answering with LangChain
-- Simple interactive CLI chat loop
+The vector database is stored in `chroma_db/<pdf name>/`, so each PDF is indexed once and reused on later runs.
 
-## Tech Stack
-
-- Python 3.10+
-- LangChain
-- LangChain Community
-- Chroma
-- Google Generative AI (Gemini)
-- python-dotenv
-- PyPDF
-
-## Project Structure
-
-```text
-My-RAG-project/
-├── .env                     # Local environment variables (API key)
-├── rag_app.py               # Main RAG application
-├── chroma_db/               # Persisted vector database (generated at runtime)
-├── Curs PAA complet.pdf   # Source PDF document
-├── venv/                    # Virtual environment
-├── .gitignore               # Git ignore rules
-└── README.md                # Project documentation
-```
-
-## Prerequisites
-
-Before running the app, make sure you have:
-
-- Python installed
-- A Google API key with access to Gemini models
-- A PDF file to index
-
-## Setup
-
-1. Open a terminal in the project folder.
-
-2. Create and activate a virtual environment:
+## Quick start
 
 ```bash
 python -m venv venv
+venv\Scripts\activate          # Windows (on macOS/Linux: source venv/bin/activate)
+pip install -r requirements.txt
 ```
 
-On Windows PowerShell:
+Create a `.env` file in the project folder with your Google API key (it is git-ignored and must never be committed):
 
-```powershell
-.\venv\Scripts\Activate.ps1
 ```
-
-3. Install the required packages:
-
-```bash
-pip install python-dotenv pypdf langchain langchain-community langchain-google-genai chromadb
-```
-
-4. Create a `.env` file in the project root and add your Google API key:
-
-```env
 GOOGLE_API_KEY=your_google_api_key_here
 ```
 
-5. Place your PDF in the project root and ensure the filename matches the loader in `rag_app.py`.
-
-The PDF currently included in the project is `Curs PAA complet.pdf`. Configure the loader in `rag_app.py` to use that exact filename:
-
-```python
-loader = PyPDFLoader("Curs PAA complet.pdf")
-```
-
-If you use a different PDF, update the filename passed to `PyPDFLoader` to match it. The filename must include spaces and punctuation exactly as they appear on disk.
-
-## Run the App
-
-Start the chatbot:
+Run it on the included fictional sample document:
 
 ```bash
 python rag_app.py
 ```
 
-You will see a prompt like:
+Or on your own PDF:
 
-```text
-Your Question:
+```bash
+python rag_app.py path/to/your_document.pdf
 ```
 
-Type a question about the PDF and press Enter. To exit, type:
+Type a question at the `Your Question:` prompt; type `exit` or `quit` to stop.
 
-```text
-exit
+## Test questions
+
+`sample_employee_handbook.pdf` is a fictional one-page handbook written for testing. These questions have known answers
+in it, plus one question that is deliberately not covered, to check that the app says it doesn't know instead of inventing an answer.
+
+| Question | Expected answer |
+|---|---|
+| How many days of annual leave do employees get? | 21 working days per year |
+| How many unused leave days can be carried over, and until when? | Up to 5 days, until 31 March |
+| When is a medical certificate required? | After 3 consecutive sick days |
+| How many days per week can I work remotely? | Up to 2, with manager approval |
+| Who must approve expenses above 200 EUR? | The department head |
+| Can I store customer data on my personal laptop? | No |
+| What is the name of the CEO? | Not in the document: should answer that it doesn't know |
+
+## Project structure
+
+```
+.
+├── rag_app.py                       # Main application
+├── sample_employee_handbook.pdf     # Fictional sample document for testing
+├── requirements.txt
+├── .gitignore                       # Excludes .env, chroma_db/, venv/ and other PDFs
+└── README.md
 ```
 
-or
+## Limitations and next steps
 
-```text
-quit
-```
-
-## How It Works
-
-1. The PDF is loaded and converted into document pages.
-2. The text is split into smaller chunks.
-3. Each chunk is embedded using a Google embedding model.
-4. The chunks are saved into Chroma for retrieval.
-5. User questions are compared against the stored vectors.
-6. The most relevant chunks are passed to Gemini as context.
-7. Gemini generates a concise answer based on the retrieved content.
-
-## Important Notes
-
-- The Chroma database is stored in `./chroma_db` and will be created automatically on first run.
-- The app uses the Google Gemini model configured in `rag_app.py`.
-- If your PDF is large, adjust the chunk size and retrieval number in the code to improve quality and performance.
-
-## Example
-
-```text
-Your Question: What is the company leave policy?
-Answer: The employee handbook states that employees are entitled to ...
-```
-
-## Troubleshooting
-
-- If the app reports that the PDF path is not a valid file or URL, check that the PDF is in the project root and that its name matches the `PyPDFLoader` path. The bundled file is named `Curs PAA complet.pdf`.
-- If the API call fails, verify that `GOOGLE_API_KEY` is set correctly in `.env`.
-- If dependencies are missing, run the installation command again inside the active virtual environment.
+- Retrieval returns only the top 2 chunks of 500 characters, so questions that need information from several parts of a long document may be answered incompletely. Chunk size and `k` are set in `rag_app.py`.
+- Answers don't show their source page yet; adding page-number citations would make them easier to verify.
+- The test questions above are checked by hand; automating them (question, expected fact, pass/fail) is the next step.
+- Only Gemini is used at the moment. Switching the chat model to another provider (for example Claude) means replacing the `ChatGoogleGenerativeAI` line; the embeddings are a separate choice.
